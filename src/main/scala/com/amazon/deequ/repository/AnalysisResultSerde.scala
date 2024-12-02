@@ -256,6 +256,12 @@ private[deequ] object AnalyzerSerializer
         result.addProperty(COLUMN_FIELD, sum.column)
         result.addProperty(WHERE_FIELD, sum.where.orNull)
 
+      case ratioOfSums: RatioOfSums =>
+        result.addProperty(ANALYZER_NAME_FIELD, "RatioOfSums")
+        result.addProperty("numerator", ratioOfSums.numerator)
+        result.addProperty("denominator", ratioOfSums.denominator)
+        result.addProperty(WHERE_FIELD, ratioOfSums.where.orNull)
+
       case mean: Mean =>
         result.addProperty(ANALYZER_NAME_FIELD, "Mean")
         result.addProperty(COLUMN_FIELD, mean.column)
@@ -346,6 +352,12 @@ private[deequ] object AnalyzerSerializer
         result.addProperty("quantiles", approxQuantiles.quantiles.mkString(","))
         result.addProperty("relativeError", approxQuantiles.relativeError)
 
+      case exactQuantile: ExactQuantile =>
+        result.addProperty(ANALYZER_NAME_FIELD, "ExactQuantile")
+        result.addProperty(COLUMN_FIELD, exactQuantile.column)
+        result.addProperty("quantile", exactQuantile.quantile)
+        result.addProperty(WHERE_FIELD, exactQuantile.where.orNull)
+
 
       case minLength: MinLength =>
         result.addProperty(ANALYZER_NAME_FIELD, "MinLength")
@@ -404,6 +416,12 @@ private[deequ] object AnalyzerDeserializer
       case "Sum" =>
         Sum(
           json.get(COLUMN_FIELD).getAsString,
+          getOptionalWhereParam(json))
+
+      case "RatioOfSums" =>
+        RatioOfSums(
+          json.get("numerator").getAsString,
+          json.get("denominator").getAsString,
           getOptionalWhereParam(json))
 
       case "Mean" =>
@@ -480,6 +498,11 @@ private[deequ] object AnalyzerDeserializer
         val quantile = json.get("quantiles").getAsString.split(",").map { _.toDouble }
         val relativeError = json.get("relativeError").getAsDouble
         ApproxQuantiles(column, quantile, relativeError)
+
+      case "ExactQuantile" =>
+        val column = json.get(COLUMN_FIELD).getAsString
+        val quantile = json.get("quantile").getAsDouble
+        ExactQuantile(column, quantile)
 
       case "MinLength" =>
         MinLength(

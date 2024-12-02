@@ -8,7 +8,7 @@
     <artifactId>deequ_${scala.major.version}</artifactId>
 <!--    <groupId>com.amazon.deequ</groupId>-->
 <!--    <artifactId>deequ</artifactId>-->
-    <version>2.0.4.0-spark-3.3</version>
+    <version>2.0.7-spark-3.5</version>
 
     <name>deequ</name>
     <description>Deequ is a library built on top of Apache Spark for defining "unit tests for data",
@@ -86,13 +86,14 @@
         <scala-maven-plugin.version>4.8.1</scala-maven-plugin.version>
 
         <!-- Spark -->
-        <spark.version>${spark-33.version}</spark.version>
+        <spark.version>${spark-35.version}</spark.version>
         <spark-22.version>2.2.2</spark-22.version>
         <spark-23.version>2.3.2</spark-23.version>
         <spark-24.version>2.4.2</spark-24.version>
         <spark-30.version>3.0.0</spark-30.version>
         <spark-31.version>3.1.1.0</spark-31.version>
         <spark-33.version>3.3.0</spark-33.version>
+        <spark-35.version>3.5.0</spark-35.version>
         <artifact.spark.version></artifact.spark.version>
         <spark.scope>provided</spark.scope>
     </properties>
@@ -135,7 +136,7 @@
         <dependency>
             <groupId>org.scalanlp</groupId>
             <artifactId>breeze_${scala.major.version}</artifactId>
-            <version>0.13.2</version>
+            <version>2.1.0</version>
         </dependency>
 
         <dependency>
@@ -187,6 +188,12 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-spark-runtime-3.3_2.12</artifactId>
+            <version>0.14.0</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
@@ -238,6 +245,7 @@
                 <artifactId>scalatest-maven-plugin</artifactId>
                 <version>1.0</version>
                 <configuration>
+                    <stdout>F</stdout>
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                     <junitxml>.</junitxml>
                     <filereports>WDF TestSuite.txt</filereports>
@@ -269,6 +277,7 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <phase>process-resources</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>

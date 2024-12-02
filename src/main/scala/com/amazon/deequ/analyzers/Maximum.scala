@@ -16,13 +16,18 @@
 
 package com.amazon.deequ.analyzers
 
-import com.amazon.deequ.analyzers.Preconditions.{hasColumn, isNumeric}
-import org.apache.spark.sql.{Column, Row}
-import org.apache.spark.sql.functions.{col, max}
-import org.apache.spark.sql.types.{DoubleType, StructType}
-import Analyzers._
+import com.amazon.deequ.analyzers.Analyzers._
+import com.amazon.deequ.analyzers.Preconditions.hasColumn
+import com.amazon.deequ.analyzers.Preconditions.isNumeric
 import com.amazon.deequ.metrics.FullColumn
 import com.google.common.annotations.VisibleForTesting
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.element_at
+import org.apache.spark.sql.functions.max
+import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.Row
 
 case class MaxState(maxValue: Double, override val fullColumn: Option[Column] = None)
   extends DoubleValuedState[MaxState] with FullColumn {
@@ -36,16 +41,18 @@ case class MaxState(maxValue: Double, override val fullColumn: Option[Column] = 
   }
 }
 
-case class Maximum(column: String, where: Option[String] = None)
+case class Maximum(column: String, where: Option[String] = None, analyzerOptions: Option[AnalyzerOptions] = None)
   extends StandardScanShareableAnalyzer[MaxState]("Maximum", column)
   with FilterableAnalyzer {
 
   override def aggregationFunctions(): Seq[Column] = {
-    max(criterion) :: Nil
+    // The criterion returns a column where each row contains an array of 2 elements.
+    // The first element of the array is a string that indicates if the row is "in scope" or "filtered" out.
+    // The second element is the value used for calculating the metric. We use "element_at" to extract it.
+    max(element_at(criterion, 2).cast(DoubleType)) :: Nil
   }
 
   override def fromAggregationResult(result: Row, offset: Int): Option[MaxState] = {
-
     ifNoNullsIn(result, offset) { _ =>
       MaxState(result.getDouble(offset), Some(criterion))
     }
@@ -58,7 +65,5 @@ case class Maximum(column: String, where: Option[String] = None)
   override def filterCondition: Option[String] = where
 
   @VisibleForTesting
-  private def criterion: Column = conditionalSelection(column, where).cast(DoubleType)
-
+  private def criterion: Column = conditionalSelectionWithAugmentedOutcome(col(column), where)
 }
-

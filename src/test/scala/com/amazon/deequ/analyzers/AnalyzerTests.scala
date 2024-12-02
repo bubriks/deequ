@@ -63,7 +63,9 @@ class AnalyzerTests extends AnyWordSpec with Matchers with SparkContextSpec with
       val result2 = Completeness("att2").calculate(dfMissing)
       assert(result2 == DoubleMetric(Entity.Column,
         "Completeness", "att2", Success(0.75), result2.fullColumn))
-
+      val result3 = Completeness("att2", Option("att1 is NOT NULL")).calculate(dfMissing)
+      assert(result3 == DoubleMetric(Entity.Column,
+      "Completeness", "att2", Success(4.0/6.0), result3.fullColumn))
     }
 
     "fail on wrong column input" in withSparkSession { sparkSession =>
@@ -845,6 +847,23 @@ class AnalyzerTests extends AnyWordSpec with Matchers with SparkContextSpec with
       val analyzer = PatternMatch(someColumnName, Patterns.SOCIAL_SECURITY_NUMBER_US)
       analyzer.calculate(df).value shouldBe Success(2.0 / 8.0)
       assert(analyzer.calculate(df).fullColumn.isDefined)
+    }
+
+    "compute ratio of sums correctly for numeric data" in withSparkSession { sparkSession =>
+      val df = getDfWithNumericValues(sparkSession)
+      RatioOfSums("att1", "att2").calculate(df).value shouldBe Success(21.0 / 18.0)
+    }
+
+    "fail to compute ratio of sums for non numeric type" in withSparkSession { sparkSession =>
+      val df = getDfFull(sparkSession)
+      assert(RatioOfSums("att1", "att2").calculate(df).value.isFailure)
+    }
+
+    "divide by zero" in withSparkSession { sparkSession =>
+      val df = getDfWithNumericValues(sparkSession)
+      val testVal = RatioOfSums("att1", "att2", Some("item IN ('1', '2')")).calculate(df)
+      assert(testVal.value.isSuccess)
+      assert(testVal.value.toOption.get.isInfinite)
     }
   }
 }

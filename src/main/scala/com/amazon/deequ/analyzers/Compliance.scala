@@ -40,29 +40,37 @@ import com.google.common.annotations.VisibleForTesting
 case class Compliance(instance: String,
                       predicate: String,
                       where: Option[String] = None,
-                      columns: List[String] = List.empty[String])
-  extends StandardScanShareableAnalyzer[NumMatchesAndCount]("Compliance", instance)
-  with FilterableAnalyzer {
+                      columns: List[String] = List.empty[String],
+                      analyzerOptions: Option[AnalyzerOptions] = None)
+  extends StandardScanShareableAnalyzer[NumMatchesAndCount]("Compliance", instance) with FilterableAnalyzer {
 
   override def fromAggregationResult(result: Row, offset: Int): Option[NumMatchesAndCount] = {
-
     ifNoNullsIn(result, offset, howMany = 2) { _ =>
-      NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1), Some(criterion))
+      NumMatchesAndCount(result.getLong(offset), result.getLong(offset + 1), Some(rowLevelResults))
     }
   }
 
   override def aggregationFunctions(): Seq[Column] = {
-
-    val summation = sum(criterion)
-
+    val summation = sum(criterion.cast(IntegerType))
     summation :: conditionalCount(where) :: Nil
   }
 
   override def filterCondition: Option[String] = where
 
   @VisibleForTesting
-  private def criterion: Column = {
-    conditionalSelection(expr(predicate), where).cast(IntegerType)
+  private def criterion: Column = conditionalSelection(expr(predicate), where)
+
+  private def rowLevelResults: Column = {
+    val filteredRowOutcome = getRowLevelFilterTreatment(analyzerOptions)
+    val whereNotCondition = where.map { expression => not(expr(expression)) }
+
+    filteredRowOutcome match {
+      case FilteredRowOutcome.TRUE =>
+        conditionSelectionGivenColumn(expr(predicate), whereNotCondition, replaceWith = true)
+      case _ =>
+        // The default behavior when using filtering for rows is to treat them as nulls. No special treatment needed.
+        criterion
+    }
   }
 
   override protected def additionalPreconditions(): Seq[StructType => Unit] =
